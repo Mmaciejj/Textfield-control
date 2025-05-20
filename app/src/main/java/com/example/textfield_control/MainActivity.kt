@@ -42,12 +42,12 @@ fun TextFieldBlockerApp() {
     val statusBarHeightDp = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val padding = 16.dp
     val sidePadding = 24.dp
+    var lastValidText by remember { mutableStateOf("") }
 
     val errorMessages = mutableListOf<String>()
     if (uppercaseBlocked && text.any { it.isUpperCase() }) errorMessages.add("Blokada wielkich liter!")
     if (lowercaseBlocked && text.any { it.isLowerCase() }) errorMessages.add("Blokada małych liter!")
     if (nonAlphanumericBlocked && text.any { !it.isLetterOrDigit() }) errorMessages.add("Blokada znaków innych niż alfanumeryczne!")
-    var lastValidText by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -61,35 +61,34 @@ fun TextFieldBlockerApp() {
             modifier = Modifier.fillMaxWidth().padding(top = statusBarHeightDp),
             textAlign = TextAlign.Center
         )
-
+            //bugfixed
         TextField(
             value = text,
             onValueChange = { newValue ->
-                val lastChar = newValue.lastOrNull()
-
-                if (lastChar != null && (
-                            (uppercaseBlocked && lastChar.isUpperCase()) ||
-                                    (lowercaseBlocked && lastChar.isLowerCase() && !lastChar.isDigit()) ||
-                                    (nonAlphanumericBlocked && !lastChar.isLetterOrDigit())
-                            )) {
-                    text = lastValidText
-                } else {
-                    lastValidText = newValue
+                if (newValue.length < text.length) {
+                    // Użytkownik usuwa znak — pozwalamy na zmianę
                     text = newValue
+                    lastValidText = newValue
+                } else {
+                    // Sprawdzamy OSTATNI wpisany znak
+                    val lastChar = newValue.lastOrNull()
+
+                    if (lastChar != null && (
+                                (uppercaseBlocked && lastChar.isUpperCase()) ||
+                                        (lowercaseBlocked && lastChar.isLowerCase() && !lastChar.isDigit()) ||
+                                        (nonAlphanumericBlocked && !lastChar.isLetterOrDigit())
+                                )) {
+                        text = lastValidText // Odrzucamy TYLKO niedozwolony znak
+                    } else {
+                        lastValidText = newValue
+                        text = newValue
+                    }
                 }
             },
             label = { Text("Wprowadź tekst") },
             modifier = Modifier.fillMaxWidth().padding(top = padding),
             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Text)
         )
-
-        if (errorMessages.isNotEmpty()) {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                errorMessages.forEach { error ->
-                    Text(text = error, color = Color.Red, fontSize = 16.sp, textAlign = TextAlign.Center)
-                }
-            }
-        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -106,13 +105,47 @@ fun TextFieldBlockerApp() {
             Spacer(modifier = Modifier.height(12.dp))
             SwitchRow("Blokuj znaki inne niż alfanumeryczne", nonAlphanumericBlocked) { nonAlphanumericBlocked = it }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Pole na komunikaty o błędach
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .background(
+                    if (errorMessages.isNotEmpty()) Color.Red.copy(alpha = 0.1f) // Czerwone tło przy błędzie
+                    else Color.Green.copy(alpha = 0.1f), // Zielone tło gdy nie ma błędów
+                    shape = MaterialTheme.shapes.medium
+                )
+                .padding(16.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Znalezione problemy:",
+                    fontSize = 18.sp,
+                    color = if (errorMessages.isNotEmpty()) Color.Red else Color.Green,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                if (errorMessages.isNotEmpty()) {
+                    errorMessages.forEach { error ->
+                        Text(text = error, fontSize = 16.sp, color = Color.Black)
+                    }
+                } else {
+                    Text(text = "Brak błędów", fontSize = 16.sp, color = Color.Black)
+                }
+            }
+        }
+
     }
 }
 
 @Composable
-fun SwitchRow(label: String, checked: Boolean,
-              onCheckedChange: (Boolean) -> Unit) {
-    Row( modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween )
-    { Text(text = label, fontSize = 16.sp)
-        Switch(checked = checked, onCheckedChange = onCheckedChange) } }
+fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, fontSize = 16.sp)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)}}
