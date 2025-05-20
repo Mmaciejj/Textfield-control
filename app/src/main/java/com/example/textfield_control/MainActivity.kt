@@ -5,18 +5,36 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.input.KeyboardType
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,12 +60,11 @@ fun TextFieldBlockerApp() {
     val statusBarHeightDp = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val padding = 16.dp
     val sidePadding = 24.dp
-    var lastValidText by remember { mutableStateOf("") }
 
     val errorMessages = mutableListOf<String>()
-    if (uppercaseBlocked && text.any { it.isUpperCase() }) errorMessages.add("Blokada wielkich liter!")
-    if (lowercaseBlocked && text.any { it.isLowerCase() }) errorMessages.add("Blokada małych liter!")
-    if (nonAlphanumericBlocked && text.any { !it.isLetterOrDigit() }) errorMessages.add("Blokada znaków innych niż alfanumeryczne!")
+    if (uppercaseBlocked && text.any { it.isUpperCase() }) errorMessages.add("Blokada wielkich liter naruszona!")
+    if (lowercaseBlocked && text.any { it.isLowerCase() }) errorMessages.add("Blokada małych liter naruszona!")
+    if (nonAlphanumericBlocked && text.any { !it.isLetterOrDigit() }) errorMessages.add("Blokada znaków nie-alfanumerycznych naruszona!")
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -61,34 +78,46 @@ fun TextFieldBlockerApp() {
             modifier = Modifier.fillMaxWidth().padding(top = statusBarHeightDp),
             textAlign = TextAlign.Center
         )
-            //bugfixed
-        TextField(
-            value = text,
-            onValueChange = { newValue ->
-                if (newValue.length < text.length) {
-                    // Użytkownik usuwa znak — pozwalamy na zmianę
-                    text = newValue
-                    lastValidText = newValue
-                } else {
-                    // Sprawdzamy OSTATNI wpisany znak
-                    val lastChar = newValue.lastOrNull()
 
-                    if (lastChar != null && (
-                                (uppercaseBlocked && lastChar.isUpperCase()) ||
-                                        (lowercaseBlocked && lastChar.isLowerCase() && !lastChar.isDigit()) ||
-                                        (nonAlphanumericBlocked && !lastChar.isLetterOrDigit())
-                                )) {
-                        text = lastValidText // Odrzucamy TYLKO niedozwolony znak
-                    } else {
-                        lastValidText = newValue
-                        text = newValue
+
+            //przepisane pole - bugfix2
+        OutlinedTextField(
+
+            value = text,
+            onValueChange = { newText ->
+                if (newText.length == text.length - 1) {
+                    // nieograniczone uzycie backspace, ale wylaczone zaznaczanie
+                    text = newText
+                } else {
+                    // Sprawdzam różnice między poprzednim i nowym tekstem
+                    val diffIndex = newText.indices.firstOrNull { index ->
+                        index >= text.length || newText[index] != text.getOrNull(index)
+                    }
+
+                    val addedChar = diffIndex?.let { newText[it] }
+                    val isAllowed = addedChar?.let { char ->
+                        (!uppercaseBlocked || !char.isUpperCase()) &&
+                                (!lowercaseBlocked || !char.isLowerCase()) &&
+                                (!nonAlphanumericBlocked || char.isLetterOrDigit())
+                    } ?: true
+
+                    if (isAllowed && newText.length <= 68) {
+                        text = newText
                     }
                 }
+
+
             },
-            label = { Text("Wprowadź tekst") },
+
+            label = { Text("Wpisz tekst") },
             modifier = Modifier.fillMaxWidth().padding(top = padding),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Text)
+            visualTransformation = VisualTransformation.None
+
         )
+
+        
+
+
 
         Spacer(modifier = Modifier.height(24.dp))
 
